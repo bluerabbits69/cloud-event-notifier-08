@@ -1,0 +1,42 @@
+name: CI (notify)
+
+on:
+  push:
+    branches: [main]
+    workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - users: actions/checkout@v4
+
+      # ここにビルド/テスト/デプロイの本処理を追加
+      - name: Dummy build
+        run: echo "build OK"
+
+      # ここから通知ステップ
+      - name: Send Webhook to Function
+        if: always() # 常に実行
+        env:
+          CI_NOTIFY_SECRET: ${{ secrets.CI_NOTIFY_SECRET}}
+          WEBHOOK_URL: ${{ secrets.CI_NOTIFY_WEBHOOK_URL }}
+        run: |
+          BODY=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg workflow "${{ github.workflow }}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg run_number "${{ github.run_number }}" \
+            --arg status "${{ job.status }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg ref "${{ github.ref }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg html_url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg duration_ms "0" \
+            '{repo:$repo, workflow:$workflow, run_id:$run_id, run_number:$run_number, status:$status, sha:$sha, ref:$ref, actor:$actor, html_url:$html_url, duration_ms: ($duration_ms|tonumber)}')
+
+          SIG="sha256=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$CI_NOTIFY_SECRET" -binary | xxd -p -c 256)"
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Signature-256: $SIG" \
+            --data "$BODY"
