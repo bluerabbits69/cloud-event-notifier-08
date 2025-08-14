@@ -3,13 +3,13 @@ name: CI (notify)
 on:
   push:
     branches: [main]
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - users: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       # ここにビルド/テスト/デプロイの本処理を追加
       - name: Dummy build
